@@ -15,7 +15,10 @@ ANTHROPIC_API_KEY =  os.environ.get("ANTHROPIC_API_KEY")
 # --- Constants ---
 # Using Claude 3.5 Sonnet as a powerful and available model.
 # Claude 3.7 is not yet released as of my last update.
-MODEL_NAME = "claude-3-5-sonnet-20240620"
+MODEL_NAMES = {
+   'sonnet': "claude-3-7-sonnet-latest",
+    'haiku': "claude-3-5-haiku-latest"
+}
 MAX_PAPER_LEN_FOR_PROMPT = 15000 # Truncate paper text in prompts to avoid excessive token usage
 
 # --- Initialize Anthropic Client ---
@@ -32,7 +35,7 @@ else:
 
 # --- Agent Functions ---
 
-def call_claude(system_prompt, user_message, max_tokens=4000):
+def call_claude(system_prompt, user_message, max_tokens=4000, model='sonnet'):
     """
     Helper function to call the Claude API.
     Handles API calls, basic error handling, and extracts text content.
@@ -47,7 +50,7 @@ def call_claude(system_prompt, user_message, max_tokens=4000):
 
         # Make the API call
         message = client.messages.create(
-            model=MODEL_NAME,
+            model=MODEL_NAMES[model],
             max_tokens=max_tokens,
             system=system_prompt,
             messages=messages
@@ -81,8 +84,9 @@ def call_claude(system_prompt, user_message, max_tokens=4000):
          st.error(f"Anthropic API Bad Request Error (check inputs/prompts): {e}")
     except Exception as e:
         st.error(f"An unexpected error occurred during Claude API call: {e}")
+    raise Exception('Claude failed')
 
-    return None # Indicate failure
+    # return None # Indicate failure
 
 def agent_1_evaluate(paper_text, skepticism_level):
     """Agent 1: Critically evaluates the paper based on skepticism level."""
@@ -170,6 +174,7 @@ def agent_3_find_directions(paper_text, objective_summary):
     """Agent 3: Identifies 3-5 future hypothesis directions."""
     system_prompt = """
 You are Agent 3, a Hypothesis Master AI. You are analyzing a scientific paper and an objective summary of its critiques to identify promising avenues for future research.
+You are an expert in this topic. 
 
 **Your Task:**
 Identify 3 to 5 distinct, general **directions** for future research hypotheses that logically follow from or are inspired by the provided paper and the summary of its critiques.
@@ -181,6 +186,9 @@ Identify 3 to 5 distinct, general **directions** for future research hypotheses 
 * **Refutations & Challenges:** Can alternative hypotheses be formulated to challenge the paper's claims based on the critiques?
 * **Novel Connections:** Are there links to other fields or broader concepts suggested by the work?
 * **Methodological Improvements:** Can new hypotheses be tested using improved or different methodologies?
+
+**Most important criteria** is that the direction is important and impactful for current expectations of the field (for eg. in biological systems, to actually 
+proceed towards clinical outcomes). 
 
 **Output Format:**
 Provide a list of 3 to 5 directions. For each direction:
@@ -292,7 +300,9 @@ Based on the paper excerpt and the summary of critiques, identify 3-5 general di
 def agent_4_mature_hypothesis(direction_title, direction_description, paper_text):
     """Agent 4: Matures a direction into a detailed hypothesis abstract."""
     system_prompt = f"""
-You are Agent 4, a Hypothesis Maturing AI assistant. You are tasked with transforming a general research direction into a concrete, testable hypothesis and outlining a potential study in the form of a detailed abstract.
+You are Agent 4, a Hypothesis Maturing AI assistant. You are tasked with transforming a general research direction into a concrete, testable hypothesis and outlining a potential study in the form of a detailed abstract. You have to strive that the hypothesis is impactful, and in retrospect, 
+the most obvious next question to ask that increases the stakes or clarifies things better (but not in a minutiae sense). Its okay to pivot!
+Ideally, the hypothesis, if it was proposed by a PhD student to their advisor should go, FANTASTIC. 
 
 **Research Direction Provided:**
 * **Title:** {direction_title}
@@ -355,11 +365,12 @@ You are Agent 6, a Critical Reviewer AI. You specialize in identifying potential
 Analyze the provided research hypothesis abstract and generate 5 to 10 distinct, insightful, and specific criticisms of the proposed study.
 
 **Focus Areas for Criticism:**
+* **Significance/Novelty:** Is the claimed contribution realistic? Does it truly address a significant gap or just an incremental step?
+* **Impact:** Is the proposed plan actually impactful for the field? Or is it just another "why not" question?
 * **Hypothesis:** Is it truly clear, specific, testable, falsifiable? Are there hidden assumptions? Is the novelty overstated?
 * **Methodology:** Feasibility issues? Sample size/representativeness concerns? Appropriateness of design/measures? Potential confounds or biases not addressed? Lack of controls? Ethical concerns? Vague descriptions?
 * **Analysis Plan:** Appropriate statistical methods? Potential for p-hacking or misinterpretation?
 * **Expected Outcomes/Interpretation:** Are alternative explanations for expected outcomes ignored? Is the link between potential results and hypothesis conclusion sound?
-* **Significance/Novelty:** Is the claimed contribution realistic? Does it truly address a significant gap or just an incremental step?
 * **Overall Logic:** Are there inconsistencies or logical gaps in the proposal?
 
 **Instructions:**
@@ -476,7 +487,7 @@ Read the hypothesis abstract, the specific criticism you must refute, and the de
 **Your Turn ({role.upper()}):** {role_instruction} Keep your argument concise (1-2 paragraphs).
 """
     # print(f"--- Agent 7 Prompt (Role: {role}) ---\nSystem: Prompt defined...\nUser: Inputs provided...\n---") # Debugging
-    argument = call_claude(system_prompt, user_message, max_tokens=600) # Moderate length for arguments
+    argument = call_claude(system_prompt, user_message, max_tokens=600, model='haiku') # Moderate length for arguments
     return argument
 
 def summarize_debate(criticism, debate_transcript):
@@ -889,32 +900,32 @@ elif st.session_state.analysis_complete:
     # Display Agents 4, 6, 7 results (grouped by hypothesis)
     if 'hypotheses_analysis' in results:
         st.subheader("Agents 4, 6, 7: Hypothesis Development, Criticism & Debate Details")
-        for i, data in enumerate(results['hypotheses_analysis']):
-            with st.expander(f"Details for Hypothesis based on: '{data.get('title', f'Direction {i+1}')}'", expanded=False):
-                st.markdown(f"**Agent 4: Abstract**")
-                abstract = data.get('abstract', 'N/A')
-                if abstract.startswith("Error:"):
-                    st.error(abstract) # Show error if Agent 4 failed
-                else:
-                    st.markdown(abstract)
+        hypotheses = st.session_state.analysis_results['hypotheses_analysis']
+        # Create a tab for each hypothesis title
+        tabs = st.tabs([h['title'] for h in hypotheses])
 
-                st.markdown(f"---")
-                st.markdown(f"**Agent 6 & 7: Criticisms & Debates**")
-                if data.get('criticisms'):
-                    for j, crit_data in enumerate(data['criticisms']):
-                         st.markdown(f"**Criticism {j+1}:** {crit_data.get('criticism', 'N/A')}")
-                         # Optionally display full debate transcript too
-                         # with st.expander(f"Full Debate Transcript for Criticism {j+1}", expanded=False):
-                         #    st.text(crit_data.get('debate_transcript', 'N/A'))
-                         st.markdown(f"**Debate Summary:**")
-                         summary = crit_data.get('debate_summary', 'N/A')
-                         if summary.startswith("Error:"):
-                             st.warning(summary)
-                         else:
-                             st.markdown(summary)
-                         st.markdown("---") # Separator between criticisms
-                elif not abstract.startswith("Error:"): # Only show 'no criticisms' if abstract was generated
-                    st.markdown("_No criticisms were generated or debated for this hypothesis._")
+        for idx, (hypo, tab) in enumerate(zip(hypotheses, tabs)):
+            with tab:
+                # Display Abstract
+                st.markdown(f"**Abstract for '{hypo['title']}'**")
+                if hypo['abstract'].startswith("Error:"):
+                    st.error(hypo['abstract'])
+                else:
+                    st.markdown(hypo['abstract'])
+                st.divider()
+
+                # Display Debates
+                st.markdown(f"**Debates & Summaries for '{hypo['title']}'**")
+                criticisms = hypo.get('criticisms', [])
+                if criticisms:
+                    for j, cdata in enumerate(criticisms):
+                        with st.expander(f"Criticism {j + 1}: {cdata['criticism']}", expanded=False):
+                            # Show debate transcript if needed:
+                            # st.text(cdata['debate_transcript'])
+                            st.markdown(f"**Summary:** {cdata['debate_summary']}")
+                else:
+                    st.info("No criticisms or debates generated for this hypothesis.")
+
         st.divider()
 
     # Display Agent 8 results
