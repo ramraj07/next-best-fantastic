@@ -18,8 +18,6 @@ uses claude 3.7 with tool use.
 
 User can paste a full text of a paper.
 
-
-
 Agent 1 is a critical evaluation agent. It can take as parameter level of 
 skepticism - 3 levels - very prone to believe the paper, neutral and trying 
 really hard to invalidate the paper. Run agent with all 3 levels.
