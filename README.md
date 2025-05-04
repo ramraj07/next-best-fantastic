@@ -57,6 +57,7 @@ No frameworks like langchain or langgraph
 ## Agent structure
 
 ```mermaid
+ flowchart TD
     A[User Pastes Paper and Clicks Analyze] --> B[Agent 1: Critical Evaluation]
     B --> B1[Low Skepticism]
     B --> B2[Neutral Skepticism]
