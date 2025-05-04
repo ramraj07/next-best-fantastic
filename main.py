@@ -300,7 +300,7 @@ Based on the paper excerpt and the summary of critiques, identify 3-5 general di
 def agent_4_mature_hypothesis(direction_title, direction_description, paper_text):
     """Agent 4: Matures a direction into a detailed hypothesis abstract."""
     system_prompt = f"""
-You are Agent 4, a Hypothesis Maturing AI assistant. You are tasked with transforming a general research direction into a concrete, testable hypothesis and outlining a potential study in the form of a detailed abstract. You have to strive that the hypothesis is impactful, and in retrospect, 
+You are Agent 4, a Hypothesis Maturing AI assistant. You are tasked with transforming a general research direction into a FANTASTIC, concrete, testable hypothesis and outlining a potential study in the form of a detailed abstract. You have to strive that the hypothesis is impactful, and in retrospect, 
 the most obvious next question to ask that increases the stakes or clarifies things better (but not in a minutiae sense). Its okay to pivot!
 Ideally, the hypothesis, if it was proposed by a PhD student to their advisor should go, FANTASTIC. 
 
