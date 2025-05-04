@@ -14,6 +14,7 @@ The final output is a complete audit trail of reasoning and the winning hypothes
 
 🖼️ Workflow Diagram
 ```mermaid
+    flowchart TD
     A[User Pastes Paper and Clicks Analyze] --> B[Agent 1: Critical Evaluation]
     B --> B1[Low Skepticism]
     B --> B2[Neutral Skepticism]
